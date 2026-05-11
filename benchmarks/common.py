@@ -20,6 +20,12 @@ class BenchResult:
     backend_duration_ms: float | None
     server_duration_ms: float | None
     client_rtt_ms: float
+    time_between_frames_ms: float | None = None
+    memory_gpu_bytes: float | None = None
+    memory_host_bytes: float | None = None
+    memory_server_rss_bytes: float | None = None
+    gpu_init_ms: float | None = None
+    accuracy: float | None = None
 
 
 def utc_now_iso() -> str:

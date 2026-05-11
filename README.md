@@ -6,6 +6,7 @@ Profesjonalny klient benchmarkujacy REST API WebGPU/CUDA opisane w `openapi.json
 
 - Python 3.14+ (lub 3.11+ z asyncio TaskGroup)
 - Serwer REST uruchomiony pod adresem `SERVER_URL`
+- WebSocket w serwerze pod `/video/stream`
 
 ## Instalacja
 
@@ -32,6 +33,14 @@ Tryb szybki:
 python main.py --mode quick
 ```
 
+Tryb szybki uruchamia tylko mniejsze rozmiary danych (szybka walidacja).
+
+Tryb szybki z maksymalnymi rozmiarami:
+
+```powershell
+python main.py --mode quick --quick-max
+```
+
 Pojedynczy pipeline:
 
 ```powershell
@@ -44,6 +53,12 @@ Pelny benchmark (sekwencyjny + stres):
 python main.py --mode full
 ```
 
+Tryb pelny z testem obciazeniowym (duze requesty rownolegle):
+
+```powershell
+python main.py --mode full --load-test --load-concurrency 32 --load-requests 200
+```
+
 Test stresowy (wspolbiezny):
 
 ```powershell
@@ -52,8 +67,9 @@ python main.py --mode stress
 
 ## Wyniki
 
-Wyniki zapisuja sie do `results/` jako CSV o nazwie zbudowanej z danych `/gpu/info` oraz daty.
+Wyniki zapisuja sie do `results/<nazwa>/` (nazwa z `/gpu/info` + data). Dla kazdego endpointu powstaje osobny katalog z:
 
-Kolumna `run_mode` rozroznia pomiary sekwencyjne i stresowe. Wykresy (backend/gpu RTT) laduja w tym samym katalogu.
+- `tabelki*.csv` (osobno per endpoint/optimized/run_mode)
+- wykresami `backend_duration_ms*.png`, `gpu_duration_ms*.png`, `client_rtt_ms*.png`
 
 Gdy `USE_CUDA=1`, testy uruchamiaja sie zarowno dla WebGPU, jak i CUDA, osobno dla kazdego wariantu `optimized`.

@@ -17,7 +17,7 @@ class ApiResponse:
 
 
 class SyncApiClient:
-    def __init__(self, base_url: str, timeout_sec: float = 60.0) -> None:
+    def __init__(self, base_url: str, timeout_sec: float = 600.0) -> None:
         self._base_url = base_url.rstrip("/")
         self._session = requests.Session()
         self._timeout = timeout_sec
@@ -52,7 +52,7 @@ class SyncApiClient:
 
 
 class AsyncApiClient:
-    def __init__(self, base_url: str, timeout_sec: float = 60.0) -> None:
+    def __init__(self, base_url: str, timeout_sec: float = 600.0) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = aiohttp.ClientTimeout(total=timeout_sec)
         self._session: aiohttp.ClientSession | None = None
