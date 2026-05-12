@@ -217,3 +217,6 @@ def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_tota
                 _plot_metric(opt_df, "backend_duration_ms", endpoint_dir / f"backend_duration_ms{run_suffix}{opt_suffix}.png")
                 _plot_metric(opt_df, "gpu_duration_ms", endpoint_dir / f"gpu_duration_ms{run_suffix}{opt_suffix}.png")
                 _plot_metric(opt_df, "client_rtt_ms", endpoint_dir / f"client_rtt_ms{run_suffix}{opt_suffix}.png")
+                _plot_metric(opt_df, "memory_gpu_bytes", endpoint_dir / f"memory_gpu_bytes{run_suffix}{opt_suffix}.png")
+                _plot_metric(opt_df, "memory_host_bytes", endpoint_dir / f"memory_host_bytes{run_suffix}{opt_suffix}.png")
+                _plot_metric(opt_df, "memory_server_rss_bytes", endpoint_dir / f"memory_server_rss_bytes{run_suffix}{opt_suffix}.png")

@@ -294,7 +294,6 @@ def _run_ai_pipeline(
             print(f"[ai] unload model={model} backend={backend}")
             unload_ai_model(client, model=model, backend=backend)
             check_ai_status(client, model=model, backend=backend)
-    _log_progress("ai", len(results), planned_total)
     return results
 
 
@@ -389,6 +388,7 @@ def _run_quick(
         stream_frames = 20
         use_max_only = False
 
+    completed_total = 0
     results = []
     results += _run_matrix_pipeline(
         client,
@@ -398,7 +398,8 @@ def _run_quick(
         sizes=matrix_sizes,
         use_max_only=use_max_only,
     )
-    _log_progress("matrix", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("matrix", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_image_pipeline(
@@ -409,7 +410,8 @@ def _run_quick(
         sizes=image_sizes,
         use_max_only=use_max_only,
     )
-    _log_progress("image", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("image", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_video_pipeline(
@@ -422,11 +424,13 @@ def _run_quick(
         stream_frames=stream_frames,
         use_max_only=use_max_only,
     )
-    _log_progress("video", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("video", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_ai_pipeline(client, config, quick_samples=True)
-    _log_progress("ai", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("ai", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_render_pipeline(
@@ -437,7 +441,8 @@ def _run_quick(
         counts=render_counts,
         use_max_only=use_max_only,
     )
-    _log_progress("render", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("render", completed_total, planned_total)
     _write_stage(results, output_dir)
     return []
 
@@ -504,6 +509,7 @@ def _run_single(client: SyncApiClient, config: ArgsConfig, output_dir: Path, pla
 
 
 def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, planned_total: int | None) -> list:
+    completed_total = 0
     results = []
     results += _run_matrix_pipeline(
         client,
@@ -513,7 +519,8 @@ def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, plann
         sizes=MATRIX_SIZES,
         use_max_only=False,
     )
-    _log_progress("matrix", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("matrix", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_image_pipeline(
@@ -524,7 +531,8 @@ def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, plann
         sizes=IMAGE_SIZES,
         use_max_only=False,
     )
-    _log_progress("image", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("image", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_video_pipeline(
@@ -537,11 +545,13 @@ def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, plann
         stream_frames=1000,
         use_max_only=False,
     )
-    _log_progress("video", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("video", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_ai_pipeline(client, config, quick_samples=False)
-    _log_progress("ai", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("ai", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
     results += _run_render_pipeline(
@@ -552,7 +562,8 @@ def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, plann
         counts=RENDER_COUNTS,
         use_max_only=False,
     )
-    _log_progress("render", len(results), planned_total)
+    completed_total += len(results)
+    _log_progress("render", completed_total, planned_total)
     _write_stage(results, output_dir)
     return []
 
