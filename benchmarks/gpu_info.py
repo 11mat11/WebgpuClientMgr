@@ -9,4 +9,3 @@ def fetch_gpu_info(client: SyncApiClient) -> dict[str, Any]:
     response = client.request("GET", "/gpu/info")
     payload = response.json if isinstance(response.json, dict) else {}
     return payload
-

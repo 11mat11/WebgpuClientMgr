@@ -40,7 +40,9 @@ def pick_first_video_file(client: SyncApiClient) -> str | None:
     files = data.get("files") if isinstance(data, dict) else None
     if isinstance(files, list) and files:
         selected = str(files[0])
-        print(f"[video] list_status={response.status} files={len(files)} selected={selected}")
+        print(
+            f"[video] list_status={response.status} files={len(files)} selected={selected}"
+        )
         return selected
     print(f"[video] list_status={response.status} files=0 payload={data}")
     return None
@@ -81,9 +83,10 @@ def run_video_histogram_benchmarks(
             data = response.json if isinstance(response.json, dict) else {}
             mem_gpu, mem_host, mem_rss = _extract_memory(data)
             if response.status != 200:
-                error_msg = data.get('message', data.get('error', 'Brak szczegółów'))
+                error_msg = data.get("message", data.get("error", "Brak szczegółów"))
                 print(
-                    f"\033[91m[video_hist] Błąd: {response.status} - {error_msg} (file={file_name} frame={frame} backend={backend})\033[0m")
+                    f"\033[91m[video_hist] Błąd: {response.status} - {error_msg} (file={file_name} frame={frame} backend={backend})\033[0m"
+                )
                 continue
             if warmup and iteration == 0:
                 continue
@@ -111,18 +114,20 @@ def run_video_histogram_benchmarks(
 
 
 async def _run_stream_for_quality(
-        ws_url: str,
-        file_name: str,
-        backend: str,
-        quality: str,
-        frame_count: int,
-        ssl_context: ssl.SSLContext | None,
+    ws_url: str,
+    file_name: str,
+    backend: str,
+    quality: str,
+    frame_count: int,
+    ssl_context: ssl.SSLContext | None,
 ) -> list[BenchResult]:
     results: list[BenchResult] = []
     last_frame_time: float | None = None
 
     try:
-        async with websockets.connect(ws_url, max_size=None, ssl=ssl_context) as websocket:
+        async with websockets.connect(
+            ws_url, max_size=None, ssl=ssl_context
+        ) as websocket:
             print(
                 f"[video-stream] backend={backend} quality={quality} frames={frame_count}"
             )
@@ -141,7 +146,8 @@ async def _run_stream_for_quality(
 
                     if isinstance(payload, dict) and payload.get("error"):
                         print(
-                            f"\033[91m[video_stream] Błąd z serwera: {payload.get('error')} (quality={quality})\033[0m")
+                            f"\033[91m[video_stream] Błąd z serwera: {payload.get('error')} (quality={quality})\033[0m"
+                        )
                         return results
 
                     if isinstance(payload, dict) and payload.get("type") == "selected":
@@ -175,7 +181,9 @@ async def _run_stream_for_quality(
                     payload = json.loads(message)
 
                     if isinstance(payload, dict) and payload.get("error"):
-                        print(f"\033[91m[video_stream] Błąd w trakcie streamu: {payload.get('error')}\033[0m")
+                        print(
+                            f"\033[91m[video_stream] Błąd w trakcie streamu: {payload.get('error')}\033[0m"
+                        )
                         break
 
                     if not isinstance(payload, dict) or payload.get("type") != "frame":
@@ -200,8 +208,12 @@ async def _run_stream_for_quality(
                             run_mode="stream",
                             status=200,
                             gpu_duration_ms=_extract_float(payload, "gpuDurationMs"),
-                            backend_duration_ms=_extract_float(payload, "backendDurationMs"),
-                            server_duration_ms=_extract_float(payload, "serverDurationMs"),
+                            backend_duration_ms=_extract_float(
+                                payload, "backendDurationMs"
+                            ),
+                            server_duration_ms=_extract_float(
+                                payload, "serverDurationMs"
+                            ),
                             client_rtt_ms=frame_rtt_ms,
                             time_between_frames_ms=frame_rtt_ms,
                             memory_gpu_bytes=mem_gpu,
@@ -216,14 +228,19 @@ async def _run_stream_for_quality(
                     while True:
                         message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
                         payload = json.loads(message)
-                        if isinstance(payload, dict) and payload.get("type") == "stopped":
+                        if (
+                            isinstance(payload, dict)
+                            and payload.get("type") == "stopped"
+                        ):
                             break
                 except Exception:
                     pass
                 await websocket.close()
 
     except Exception as e:
-        print(f"\033[91m[video_stream] Błąd zerwania połączenia WebSocket: {e} (quality={quality})\033[0m")
+        print(
+            f"\033[91m[video_stream] Błąd zerwania połączenia WebSocket: {e} (quality={quality})\033[0m"
+        )
 
     return results
 
@@ -279,4 +296,3 @@ def run_video_benchmarks(
         )
     )
     return results
-

@@ -51,7 +51,11 @@ def _ordered_df(results: Iterable[BenchResult]) -> pd.DataFrame:
     ordered = [col for col in RESULT_COLUMNS if col in df.columns]
     extra = [col for col in df.columns if col not in ordered]
     df = df[ordered + extra]
-    sort_cols = [col for col in ["endpoint", "pipeline", "backend", "size_label", "timestamp_utc"] if col in df.columns]
+    sort_cols = [
+        col
+        for col in ["endpoint", "pipeline", "backend", "size_label", "timestamp_utc"]
+        if col in df.columns
+    ]
     if sort_cols:
         df = df.sort_values(sort_cols)
     return df
@@ -112,6 +116,7 @@ def _normalize_params(df: pd.DataFrame) -> pd.DataFrame:
     if "params" not in df.columns:
         return df
     normalized = df.copy()
+
     def _to_key(value: object) -> str:
         if isinstance(value, dict):
             try:
@@ -119,6 +124,7 @@ def _normalize_params(df: pd.DataFrame) -> pd.DataFrame:
             except (TypeError, ValueError):
                 return str(value)
         return str(value)
+
     normalized["params"] = normalized["params"].apply(_to_key)
     return normalized
 
@@ -179,10 +185,18 @@ def _plot_metric_bar(aggregated: pd.DataFrame, metric: str, output_path: Path) -
             by="size_label",
             key=lambda series: series.map(_size_label_key),
         )
-    x_labels = plot_df["size_label"].dropna().unique().tolist() if "size_label" in plot_df.columns else []
+    x_labels = (
+        plot_df["size_label"].dropna().unique().tolist()
+        if "size_label" in plot_df.columns
+        else []
+    )
     if not x_labels:
         return
-    backends = plot_df["backend"].dropna().unique().tolist() if "backend" in plot_df.columns else []
+    backends = (
+        plot_df["backend"].dropna().unique().tolist()
+        if "backend" in plot_df.columns
+        else []
+    )
     if not backends:
         backends = [None]
 
@@ -196,14 +210,26 @@ def _plot_metric_bar(aggregated: pd.DataFrame, metric: str, output_path: Path) -
             subset = plot_df
         else:
             subset = plot_df[plot_df["backend"] == backend]
-        value_map = {str(row["size_label"]): row.get(metric) for _, row in subset.iterrows()}
+        value_map = {
+            str(row["size_label"]): row.get(metric) for _, row in subset.iterrows()
+        }
         err_col = f"{metric}_plus_minus"
-        error_map = {str(row["size_label"]): row.get(err_col) for _, row in subset.iterrows()} if err_col in subset.columns else {}
+        error_map = (
+            {str(row["size_label"]): row.get(err_col) for _, row in subset.iterrows()}
+            if err_col in subset.columns
+            else {}
+        )
         y_values = [value_map.get(str(label), float("nan")) for label in x_labels]
-        y_errors = [error_map.get(str(label), 0.0) for label in x_labels] if error_map else None
+        y_errors = (
+            [error_map.get(str(label), 0.0) for label in x_labels]
+            if error_map
+            else None
+        )
         bar_positions = [pos - offset + idx * width for pos in x_positions]
         label = str(backend) if backend is not None else None
-        plt.bar(bar_positions, y_values, width=width, label=label, yerr=y_errors, capsize=4)
+        plt.bar(
+            bar_positions, y_values, width=width, label=label, yerr=y_errors, capsize=4
+        )
 
     plt.xticks(x_positions, [str(label) for label in x_labels])
     plt.xlabel("concurrency")
@@ -215,7 +241,9 @@ def _plot_metric_bar(aggregated: pd.DataFrame, metric: str, output_path: Path) -
     plt.clf()
 
 
-def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_total: int | None = None) -> None:
+def write_reports(
+    results: Iterable[BenchResult], output_dir: Path, planned_total: int | None = None
+) -> None:
     df = _ordered_df(results)
     if df.empty:
         return
@@ -226,7 +254,11 @@ def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_tota
     for endpoint, endpoint_df in grouped:
         endpoint_label = _slugify(str(endpoint))
 
-        run_modes = endpoint_df["run_mode"].dropna().unique().tolist() if "run_mode" in endpoint_df.columns else []
+        run_modes = (
+            endpoint_df["run_mode"].dropna().unique().tolist()
+            if "run_mode" in endpoint_df.columns
+            else []
+        )
         include_run_mode = len(run_modes) > 1
 
         if run_modes:
@@ -241,7 +273,9 @@ def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_tota
                 endpoint_dir = output_dir / endpoint_label
                 endpoint_dir.mkdir(parents=True, exist_ok=True)
 
-            run_suffix = f"_{run_mode}" if include_run_mode and run_mode is not None else ""
+            run_suffix = (
+                f"_{run_mode}" if include_run_mode and run_mode is not None else ""
+            )
             if "optimized" in run_df.columns:
                 opt_values = run_df["optimized"].dropna().unique().tolist()
             else:
@@ -249,7 +283,9 @@ def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_tota
             if not opt_values:
                 opt_groups = [(None, run_df)]
             else:
-                opt_groups = [(opt, run_df[run_df["optimized"] == opt]) for opt in opt_values]
+                opt_groups = [
+                    (opt, run_df[run_df["optimized"] == opt]) for opt in opt_values
+                ]
 
             for opt_value, opt_df in opt_groups:
                 opt_suffix = ""
@@ -269,17 +305,48 @@ def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_tota
                 export_df.to_csv(csv_path, index=False)
 
                 if run_mode == "concurrency":
-                    for metric in ["backend_duration_ms", "gpu_duration_ms", "client_rtt_ms"]:
+                    for metric in [
+                        "backend_duration_ms",
+                        "gpu_duration_ms",
+                        "client_rtt_ms",
+                    ]:
                         if metric in export_df.columns:
                             _plot_metric_bar(
                                 export_df,
                                 metric,
-                                endpoint_dir / f"{metric}_bar{run_suffix}{opt_suffix}.png",
+                                endpoint_dir
+                                / f"{metric}_bar{run_suffix}{opt_suffix}.png",
                             )
                 else:
-                    _plot_metric(opt_df, "backend_duration_ms", endpoint_dir / f"backend_duration_ms{run_suffix}{opt_suffix}.png")
-                    _plot_metric(opt_df, "gpu_duration_ms", endpoint_dir / f"gpu_duration_ms{run_suffix}{opt_suffix}.png")
-                    _plot_metric(opt_df, "client_rtt_ms", endpoint_dir / f"client_rtt_ms{run_suffix}{opt_suffix}.png")
-                    _plot_metric(opt_df, "memory_gpu_bytes", endpoint_dir / f"memory_gpu_bytes{run_suffix}{opt_suffix}.png")
-                    _plot_metric(opt_df, "memory_host_bytes", endpoint_dir / f"memory_host_bytes{run_suffix}{opt_suffix}.png")
-                    _plot_metric(opt_df, "memory_server_rss_bytes", endpoint_dir / f"memory_server_rss_bytes{run_suffix}{opt_suffix}.png")
+                    _plot_metric(
+                        opt_df,
+                        "backend_duration_ms",
+                        endpoint_dir
+                        / f"backend_duration_ms{run_suffix}{opt_suffix}.png",
+                    )
+                    _plot_metric(
+                        opt_df,
+                        "gpu_duration_ms",
+                        endpoint_dir / f"gpu_duration_ms{run_suffix}{opt_suffix}.png",
+                    )
+                    _plot_metric(
+                        opt_df,
+                        "client_rtt_ms",
+                        endpoint_dir / f"client_rtt_ms{run_suffix}{opt_suffix}.png",
+                    )
+                    _plot_metric(
+                        opt_df,
+                        "memory_gpu_bytes",
+                        endpoint_dir / f"memory_gpu_bytes{run_suffix}{opt_suffix}.png",
+                    )
+                    _plot_metric(
+                        opt_df,
+                        "memory_host_bytes",
+                        endpoint_dir / f"memory_host_bytes{run_suffix}{opt_suffix}.png",
+                    )
+                    _plot_metric(
+                        opt_df,
+                        "memory_server_rss_bytes",
+                        endpoint_dir
+                        / f"memory_server_rss_bytes{run_suffix}{opt_suffix}.png",
+                    )

@@ -61,8 +61,10 @@ def load_ai_model(client: SyncApiClient, model: str, backend: str) -> None:
     response = client.request("POST", "/ai/load", json_body=payload)
     if response.status != 200:
         err_data = response.json if isinstance(response.json, dict) else {}
-        error_msg = err_data.get('message', err_data.get('error', 'Brak szczegółów'))
-        print(f"\033[91m[ai] Błąd LOAD: {response.status} - {error_msg} (model={model} backend={backend})\033[0m")
+        error_msg = err_data.get("message", err_data.get("error", "Brak szczegółów"))
+        print(
+            f"\033[91m[ai] Błąd LOAD: {response.status} - {error_msg} (model={model} backend={backend})\033[0m"
+        )
         return
 
 
@@ -71,8 +73,10 @@ def unload_ai_model(client: SyncApiClient, model: str, backend: str) -> None:
     response = client.request("POST", "/ai/unload", json_body=payload)
     if response.status != 200:
         err_data = response.json if isinstance(response.json, dict) else {}
-        error_msg = err_data.get('message', err_data.get('error', 'Brak szczegółów'))
-        print(f"\033[91m[ai] Błąd UNLOAD: {response.status} - {error_msg} (model={model} backend={backend})\033[0m")
+        error_msg = err_data.get("message", err_data.get("error", "Brak szczegółów"))
+        print(
+            f"\033[91m[ai] Błąd UNLOAD: {response.status} - {error_msg} (model={model} backend={backend})\033[0m"
+        )
         return
 
 
@@ -220,9 +224,16 @@ def run_ai_inference_benchmarks(
             data = response.json if isinstance(response.json, dict) else {}
             mem_gpu, mem_host, mem_rss = _extract_memory(data)
             if response.status != 200:
-                error_msg = response.json.get('message', response.json.get('error',
-                                                                           'Brak szczegółów')) if response.json else 'Brak odpowiedzi JSON'
-                print(f"\033[91mBłąd predict AI: {response.status} - {error_msg}\033[0m")
+                error_msg = (
+                    response.json.get(
+                        "message", response.json.get("error", "Brak szczegółów")
+                    )
+                    if response.json
+                    else "Brak odpowiedzi JSON"
+                )
+                print(
+                    f"\033[91mBłąd predict AI: {response.status} - {error_msg}\033[0m"
+                )
                 continue
             if warmup and iteration == 0:
                 continue

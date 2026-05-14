@@ -118,7 +118,9 @@ def run_gpu_stress_alloc_benchmarks(
     payload = {"durationSec": 2, "targetMb": 256}
     for iteration in range(iterations):
         start_response = client.request("POST", "/gpu/stress/start", json_body=payload)
-        start_data = start_response.json if isinstance(start_response.json, dict) else {}
+        start_data = (
+            start_response.json if isinstance(start_response.json, dict) else {}
+        )
         if not (warmup and iteration == 0):
             results.append(
                 BenchResult(
@@ -140,7 +142,9 @@ def run_gpu_stress_alloc_benchmarks(
         stress_id = start_data.get("id") if isinstance(start_data, dict) else None
         if stress_id:
             delete_response = client.request("DELETE", f"/gpu/stress/{stress_id}")
-            delete_data = delete_response.json if isinstance(delete_response.json, dict) else {}
+            delete_data = (
+                delete_response.json if isinstance(delete_response.json, dict) else {}
+            )
             if not (warmup and iteration == 0):
                 results.append(
                     BenchResult(
@@ -154,10 +158,13 @@ def run_gpu_stress_alloc_benchmarks(
                         run_mode="sequential",
                         status=delete_response.status,
                         gpu_duration_ms=_extract_float(delete_data, "gpuDurationMs"),
-                        backend_duration_ms=_extract_float(delete_data, "backendDurationMs"),
-                        server_duration_ms=_extract_float(delete_data, "serverDurationMs"),
+                        backend_duration_ms=_extract_float(
+                            delete_data, "backendDurationMs"
+                        ),
+                        server_duration_ms=_extract_float(
+                            delete_data, "serverDurationMs"
+                        ),
                         client_rtt_ms=delete_response.client_rtt_ms,
                     )
                 )
     return results
-

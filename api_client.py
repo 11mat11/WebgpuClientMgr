@@ -45,7 +45,9 @@ class SyncApiClient:
             payload = response.json()
         except ValueError:
             payload = None
-        return ApiResponse(status=response.status_code, json=payload, client_rtt_ms=elapsed_ms)
+        return ApiResponse(
+            status=response.status_code, json=payload, client_rtt_ms=elapsed_ms
+        )
 
     def close(self) -> None:
         self._session.close()
@@ -62,7 +64,9 @@ class AsyncApiClient:
         connector = None
         if not self._verify_ssl:
             connector = aiohttp.TCPConnector(ssl=False)
-        self._session = aiohttp.ClientSession(timeout=self._timeout, connector=connector)
+        self._session = aiohttp.ClientSession(
+            timeout=self._timeout, connector=connector
+        )
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
@@ -76,13 +80,19 @@ class AsyncApiClient:
         json_body: dict[str, Any] | None = None,
     ) -> ApiResponse:
         if self._session is None:
-            raise RuntimeError("AsyncApiClient must be used as an async context manager.")
+            raise RuntimeError(
+                "AsyncApiClient must be used as an async context manager."
+            )
         url = f"{self._base_url}{path}"
         start = time.perf_counter()
-        async with self._session.request(method=method, url=url, json=json_body) as response:
+        async with self._session.request(
+            method=method, url=url, json=json_body
+        ) as response:
             elapsed_ms = (time.perf_counter() - start) * 1000.0
             try:
                 payload = await response.json()
             except (aiohttp.ContentTypeError, ValueError):
                 payload = None
-        return ApiResponse(status=response.status, json=payload, client_rtt_ms=elapsed_ms)
+        return ApiResponse(
+            status=response.status, json=payload, client_rtt_ms=elapsed_ms
+        )

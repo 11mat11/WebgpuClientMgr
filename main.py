@@ -37,14 +37,27 @@ DEFAULT_STRESS_XL_REQUESTS: Final[int] = 200
 DEFAULT_LOAD_CONCURRENCY: Final[int] = 16
 DEFAULT_LOAD_REQUESTS: Final[int] = 100
 DEFAULT_MATRIX_CONCURRENCY_MAX: Final[int] = 8
-MATRIX_SIZES: Final[list[int]] = [256, 500, 512, 1000, 1024, 2048, 3000, 4096, 5000, 8192, 10000, 12000]
+MATRIX_SIZES: Final[list[int]] = [
+    256,
+    500,
+    512,
+    1000,
+    1024,
+    2048,
+    3000,
+    4096,
+    5000,
+    8192,
+    10000,
+    12000,
+]
 MATRIX_SIZES_QUICK: Final[list[int]] = [256, 512]
 IMAGE_SIZES: Final[list[tuple[int, int]]] = [
-    (320, 180),    # 180p
-    (640, 360),    # 360p
-    (960, 540),    # 540p (qHD)
-    (1280, 720),   # 720p (HD)
-    (1600, 900),   # 900p (HD+)
+    (320, 180),  # 180p
+    (640, 360),  # 360p
+    (960, 540),  # 540p (qHD)
+    (1280, 720),  # 720p (HD)
+    (1600, 900),  # 900p (HD+)
     (1920, 1080),  # 1080p (Full HD)
     (2560, 1440),  # 1440p (QHD / 2.5K)
     (3840, 2160),  # 4K (UHD)
@@ -57,7 +70,17 @@ VIDEO_FRAMES: Final[list[int]] = list(range(20))
 VIDEO_FRAMES_QUICK: Final[list[int]] = [0, 1, 2]
 VIDEO_QUALITIES: Final[list[str]] = ["1080p", "720p", "480p", "160p"]
 VIDEO_QUALITIES_QUICK: Final[list[str]] = ["480p", "160p"]
-RENDER_COUNTS: Final[list[int]] = [500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 100000]
+RENDER_COUNTS: Final[list[int]] = [
+    500,
+    1000,
+    2000,
+    4000,
+    8000,
+    16000,
+    32000,
+    64000,
+    100000,
+]
 RENDER_COUNTS_QUICK: Final[list[int]] = [500, 1000]
 
 FILTER_COUNT: Final[int] = 1
@@ -159,12 +182,11 @@ def _derive_results_dirname(gpu_info: dict, use_cuda: bool) -> str:
 
 
 def _select_backends(use_cuda: bool, webgpu_label: str = "webgpu") -> list[str]:
-    backends=[]
+    backends = []
     if use_cuda:
         backends.append("cuda")
     backends.append(webgpu_label)
     return backends
-
 
 
 def _select_render_backends(use_cuda: bool) -> list[str]:
@@ -422,7 +444,9 @@ def _run_quick(
         render_counts = RENDER_COUNTS
         stream_frames = 20
         use_max_only = True
-        concurrency_levels = _matrix_concurrency_levels(config.matrix_concurrency_max, True)
+        concurrency_levels = _matrix_concurrency_levels(
+            config.matrix_concurrency_max, True
+        )
     else:
         matrix_sizes = MATRIX_SIZES_QUICK
         image_sizes = IMAGE_SIZES_QUICK
@@ -501,7 +525,12 @@ def _run_quick(
     return []
 
 
-def _run_single(client: SyncApiClient, config: ArgsConfig, output_dir: Path, planned_total: int | None) -> list:
+def _run_single(
+    client: SyncApiClient,
+    config: ArgsConfig,
+    output_dir: Path,
+    planned_total: int | None,
+) -> list:
     match config.target:
         case "matrix":
             results = _run_matrix_pipeline(
@@ -517,7 +546,9 @@ def _run_single(client: SyncApiClient, config: ArgsConfig, output_dir: Path, pla
             results = _run_matrix_concurrency_pipeline(
                 config,
                 iterations=config.iterations,
-                concurrency_levels=_matrix_concurrency_levels(config.matrix_concurrency_max, False),
+                concurrency_levels=_matrix_concurrency_levels(
+                    config.matrix_concurrency_max, False
+                ),
             )
             _log_progress("matrix-concurrency", len(results), planned_total)
             _write_stage(results, output_dir / "concurrency")
@@ -569,7 +600,12 @@ def _run_single(client: SyncApiClient, config: ArgsConfig, output_dir: Path, pla
             raise ValueError(f"Unknown target: {config.target}")
 
 
-def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, planned_total: int | None) -> list:
+def _run_full(
+    client: SyncApiClient,
+    config: ArgsConfig,
+    output_dir: Path,
+    planned_total: int | None,
+) -> list:
     completed_total = 0
     results = []
     results += _run_matrix_pipeline(
@@ -630,7 +666,9 @@ def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, plann
     results += _run_matrix_concurrency_pipeline(
         config,
         iterations=config.iterations,
-        concurrency_levels=_matrix_concurrency_levels(config.matrix_concurrency_max, False),
+        concurrency_levels=_matrix_concurrency_levels(
+            config.matrix_concurrency_max, False
+        ),
     )
     completed_total += len(results)
     _log_progress("matrix-concurrency", completed_total, planned_total)
@@ -677,7 +715,9 @@ def _planned_total_for_target(
         return histogram_total + stream_total
     if target == "ai":
         backends = len(_select_ai_backends(use_cuda))
-        return backends * sum(count_ai_samples(model, quick=ai_quick) for model in AI_MODELS)
+        return backends * sum(
+            count_ai_samples(model, quick=ai_quick) for model in AI_MODELS
+        )
     if target == "render":
         backends = len(_select_render_backends(use_cuda))
         count_total = len(_pick_values(sizes or [], use_max_only))
@@ -687,7 +727,9 @@ def _planned_total_for_target(
 
 def _planned_total(config: ArgsConfig) -> int:
     if config.mode == "stress":
-        planned = DEFAULT_STRESS_XL_REQUESTS if config.stress_xl else DEFAULT_STRESS_REQUESTS
+        planned = (
+            DEFAULT_STRESS_XL_REQUESTS if config.stress_xl else DEFAULT_STRESS_REQUESTS
+        )
     elif config.mode == "quick":
         if config.quick_max:
             planned = _planned_total_for_target(
@@ -1020,7 +1062,6 @@ def main(argv: list[str] | None = None) -> int:
                 total_requests=config.load_requests,
                 subdir=STRESS_SUBDIR,
             )
-
 
         print(f"Saved results to {output_dir}")
     finally:

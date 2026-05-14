@@ -51,7 +51,9 @@ async def _run_concurrency_batch(
     return responses
 
 
-async def _collect_response(client: AsyncApiClient, payload: dict, responses: list) -> None:
+async def _collect_response(
+    client: AsyncApiClient, payload: dict, responses: list
+) -> None:
     response = await client.request("POST", "/matrix/multiply", json_body=payload)
     responses.append(response)
 
@@ -78,8 +80,16 @@ async def _run_matrix_concurrency_async(
                 for response in responses:
                     data = response.json if isinstance(response.json, dict) else {}
                     if response.status != 200:
-                        error_msg = response.json.get('message', response.json.get('error','Brak szczegółów')) if response.json else 'Brak odpowiedzi JSON'
-                        print(f"\033[91mBłąd matrix (współbieżność): {response.status} - {error_msg}\033[0m")
+                        error_msg = (
+                            response.json.get(
+                                "message", response.json.get("error", "Brak szczegółów")
+                            )
+                            if response.json
+                            else "Brak odpowiedzi JSON"
+                        )
+                        print(
+                            f"\033[91mBłąd matrix (współbieżność): {response.status} - {error_msg}\033[0m"
+                        )
                         continue
                     mem_gpu, mem_host, mem_rss = _extract_memory(data)
                     results.append(
@@ -98,7 +108,9 @@ async def _run_matrix_concurrency_async(
                             run_mode="concurrency",
                             status=response.status,
                             gpu_duration_ms=_extract_float(data, "gpuDurationMs"),
-                            backend_duration_ms=_extract_float(data, "backendDurationMs"),
+                            backend_duration_ms=_extract_float(
+                                data, "backendDurationMs"
+                            ),
                             server_duration_ms=_extract_float(data, "serverDurationMs"),
                             client_rtt_ms=response.client_rtt_ms,
                             memory_gpu_bytes=mem_gpu,
@@ -116,7 +128,9 @@ def _extract_message(payload: dict) -> str | None:
     return str(message)
 
 
-def _print_error(label: str, status: int, message: str | None, details: str = "") -> None:
+def _print_error(
+    label: str, status: int, message: str | None, details: str = ""
+) -> None:
     detail = f" {details}" if details else ""
     message_text = f" message={message}" if message else ""
     print(f"\x1b[31m[{label}] status={status}{detail}{message_text}\x1b[0m")
@@ -169,9 +183,16 @@ def run_matrix_benchmarks(
                 data = response.json if isinstance(response.json, dict) else {}
                 mem_gpu, mem_host, mem_rss = _extract_memory(data)
                 if response.status != 200:
-                    error_msg = response.json.get('message', response.json.get('error',
-                                                                               'Brak szczegółów')) if response.json else 'Brak odpowiedzi JSON'
-                    print(f"\033[91mBłąd matrix: {response.status} - {error_msg}\033[0m")
+                    error_msg = (
+                        response.json.get(
+                            "message", response.json.get("error", "Brak szczegółów")
+                        )
+                        if response.json
+                        else "Brak odpowiedzi JSON"
+                    )
+                    print(
+                        f"\033[91mBłąd matrix: {response.status} - {error_msg}\033[0m"
+                    )
                     continue
                 if warmup and iteration == 0:
                     continue

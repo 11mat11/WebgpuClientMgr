@@ -23,4 +23,3 @@ def load_config(force_no_cuda: bool = False) -> AppConfig:
     if force_no_cuda:
         use_cuda = False
     return AppConfig(server_url=server_url, use_cuda=use_cuda)
-
