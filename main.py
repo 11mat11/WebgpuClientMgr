@@ -19,7 +19,10 @@ from benchmarks.ai import (
 )
 from benchmarks.gpu_info import fetch_gpu_info
 from benchmarks.image import run_image_benchmarks
-from benchmarks.matrix import run_matrix_benchmarks
+from benchmarks.matrix import (
+    run_matrix_benchmarks,
+    run_matrix_concurrency_benchmarks,
+)
 from benchmarks.render import run_render_benchmarks
 from benchmarks.stress import run_stress_benchmarks
 from benchmarks.video import pick_first_video_file, run_video_benchmarks
@@ -33,6 +36,7 @@ DEFAULT_STRESS_REQUESTS: Final[int] = 1000
 DEFAULT_STRESS_XL_REQUESTS: Final[int] = 200
 DEFAULT_LOAD_CONCURRENCY: Final[int] = 16
 DEFAULT_LOAD_REQUESTS: Final[int] = 100
+DEFAULT_MATRIX_CONCURRENCY_MAX: Final[int] = 8
 MATRIX_SIZES: Final[list[int]] = [256, 500, 512, 1000, 1024, 2048, 3000, 4096, 5000, 8192, 10000, 12000]
 MATRIX_SIZES_QUICK: Final[list[int]] = [256, 512]
 IMAGE_SIZES: Final[list[tuple[int, int]]] = [
@@ -72,6 +76,7 @@ class ArgsConfig(AppConfig):
     load_requests: int
     quick_max: bool
     stress_xl: bool
+    matrix_concurrency_max: int
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -123,6 +128,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Total requests for --load-test.",
     )
     parser.add_argument(
+        "--matrix-concurrency-max",
+        type=int,
+        default=DEFAULT_MATRIX_CONCURRENCY_MAX,
+        help="Max rownoleglych requestow dla testu duzych macierzy (1..N).",
+    )
+    parser.add_argument(
         "--stress-xl",
         action="store_true",
         help="Run extreme stress (full sizes, fewer requests) into stressxl/ (only with --mode stress).",
@@ -148,16 +159,19 @@ def _derive_results_dirname(gpu_info: dict, use_cuda: bool) -> str:
 
 
 def _select_backends(use_cuda: bool, webgpu_label: str = "webgpu") -> list[str]:
-    backends = [webgpu_label]
+    backends=[]
     if use_cuda:
         backends.append("cuda")
+    backends.append(webgpu_label)
     return backends
 
 
+
 def _select_render_backends(use_cuda: bool) -> list[str]:
-    backends = ["webgpu-render", "webgpu-compute"]
+    backends = []
     if use_cuda:
         backends.append("cuda")
+    backends += ["webgpu-render", "webgpu-compute"]
     return backends
 
 
@@ -173,6 +187,13 @@ def _half_list(values: list) -> list:
     if not values:
         return values
     return values[: max(1, len(values) // 2)]
+
+
+def _matrix_concurrency_levels(max_concurrency: int, use_max_only: bool) -> list[int]:
+    max_concurrency = max(1, max_concurrency)
+    if use_max_only:
+        return [max_concurrency]
+    return list(range(1, max_concurrency + 1))
 
 
 def _write_stage(results: list, output_dir: Path) -> None:
@@ -206,6 +227,28 @@ def _run_matrix_pipeline(
             optimized_variants=[False, True],
             iterations=iterations,
             warmup=warmup,
+        )
+    return results
+
+
+def _run_matrix_concurrency_pipeline(
+    config: ArgsConfig,
+    iterations: int,
+    concurrency_levels: list[int],
+) -> list:
+    if not concurrency_levels:
+        return []
+    results = []
+    size = MATRIX_SIZES[-1]
+    optimized = True
+    for backend in _select_backends(config.use_cuda):
+        results += run_matrix_concurrency_benchmarks(
+            config.server_url,
+            backend=backend,
+            size=size,
+            optimized=optimized,
+            iterations=iterations,
+            concurrency_levels=concurrency_levels,
         )
     return results
 
@@ -379,6 +422,7 @@ def _run_quick(
         render_counts = RENDER_COUNTS
         stream_frames = 20
         use_max_only = True
+        concurrency_levels = _matrix_concurrency_levels(config.matrix_concurrency_max, True)
     else:
         matrix_sizes = MATRIX_SIZES_QUICK
         image_sizes = IMAGE_SIZES_QUICK
@@ -387,6 +431,7 @@ def _run_quick(
         render_counts = RENDER_COUNTS_QUICK
         stream_frames = 20
         use_max_only = False
+        concurrency_levels = [2]
 
     completed_total = 0
     results = []
@@ -444,6 +489,15 @@ def _run_quick(
     completed_total += len(results)
     _log_progress("render", completed_total, planned_total)
     _write_stage(results, output_dir)
+    results = []
+    results += _run_matrix_concurrency_pipeline(
+        config,
+        iterations=1,
+        concurrency_levels=concurrency_levels,
+    )
+    completed_total += len(results)
+    _log_progress("matrix-concurrency", completed_total, planned_total)
+    _write_stage(results, output_dir / "concurrency")
     return []
 
 
@@ -460,6 +514,13 @@ def _run_single(client: SyncApiClient, config: ArgsConfig, output_dir: Path, pla
             )
             _log_progress("matrix", len(results), planned_total)
             _write_stage(results, output_dir)
+            results = _run_matrix_concurrency_pipeline(
+                config,
+                iterations=config.iterations,
+                concurrency_levels=_matrix_concurrency_levels(config.matrix_concurrency_max, False),
+            )
+            _log_progress("matrix-concurrency", len(results), planned_total)
+            _write_stage(results, output_dir / "concurrency")
             return []
         case "image":
             results = _run_image_pipeline(
@@ -565,6 +626,15 @@ def _run_full(client: SyncApiClient, config: ArgsConfig, output_dir: Path, plann
     completed_total += len(results)
     _log_progress("render", completed_total, planned_total)
     _write_stage(results, output_dir)
+    results = []
+    results += _run_matrix_concurrency_pipeline(
+        config,
+        iterations=config.iterations,
+        concurrency_levels=_matrix_concurrency_levels(config.matrix_concurrency_max, False),
+    )
+    completed_total += len(results)
+    _log_progress("matrix-concurrency", completed_total, planned_total)
+    _write_stage(results, output_dir / "concurrency")
     return []
 
 
@@ -589,6 +659,10 @@ def _planned_total_for_target(
         backends = len(_select_backends(use_cuda))
         size_count = len(_pick_values(sizes or [], use_max_only))
         return size_count * backends * 2 * iter_count
+    if target == "matrix-concurrency":
+        backends = len(_select_backends(use_cuda))
+        levels = sizes or []
+        return backends * iter_count * sum(int(level) for level in levels)
     if target == "image":
         backends = len(_select_backends(use_cuda))
         size_count = len(_pick_values(sizes or [], use_max_only))
@@ -625,6 +699,13 @@ def _planned_total(config: ArgsConfig) -> int:
                 use_max_only=True,
             )
             planned += _planned_total_for_target(
+                "matrix-concurrency",
+                1,
+                False,
+                config.use_cuda,
+                sizes=_matrix_concurrency_levels(config.matrix_concurrency_max, True),
+            )
+            planned += _planned_total_for_target(
                 "image",
                 1,
                 False,
@@ -657,6 +738,7 @@ def _planned_total(config: ArgsConfig) -> int:
                 sizes=RENDER_COUNTS,
                 use_max_only=True,
             )
+
         else:
             planned = _planned_total_for_target(
                 "matrix",
@@ -664,6 +746,13 @@ def _planned_total(config: ArgsConfig) -> int:
                 False,
                 config.use_cuda,
                 sizes=MATRIX_SIZES_QUICK,
+            )
+            planned += _planned_total_for_target(
+                "matrix-concurrency",
+                1,
+                False,
+                config.use_cuda,
+                sizes=[2],
             )
             planned += _planned_total_for_target(
                 "image",
@@ -695,6 +784,7 @@ def _planned_total(config: ArgsConfig) -> int:
                 config.use_cuda,
                 sizes=RENDER_COUNTS_QUICK,
             )
+
     elif config.mode == "single":
         target = config.target or ""
         if target == "matrix":
@@ -704,6 +794,13 @@ def _planned_total(config: ArgsConfig) -> int:
                 True,
                 config.use_cuda,
                 sizes=MATRIX_SIZES,
+            )
+            planned += _planned_total_for_target(
+                "matrix-concurrency",
+                config.iterations,
+                False,
+                config.use_cuda,
+                sizes=_matrix_concurrency_levels(config.matrix_concurrency_max, False),
             )
         elif target == "image":
             planned = _planned_total_for_target(
@@ -741,6 +838,7 @@ def _planned_total(config: ArgsConfig) -> int:
             )
         else:
             planned = 0
+
     else:
         planned = _planned_total_for_target(
             "matrix",
@@ -748,6 +846,13 @@ def _planned_total(config: ArgsConfig) -> int:
             True,
             config.use_cuda,
             sizes=MATRIX_SIZES,
+        )
+        planned += _planned_total_for_target(
+            "matrix-concurrency",
+            config.iterations,
+            False,
+            config.use_cuda,
+            sizes=_matrix_concurrency_levels(config.matrix_concurrency_max, False),
         )
         planned += _planned_total_for_target(
             "image",
@@ -798,8 +903,8 @@ def _run_stress_sequence(
     stress_dir = output_dir / subdir
     if config.use_cuda:
         stages = [
-            ("webgpu", ["webgpu"], ["webgpu-render", "webgpu-compute"]),
             ("cuda", ["cuda"], ["cuda"]),
+            ("webgpu", ["webgpu"], ["webgpu-render", "webgpu-compute"]),
         ]
     else:
         stages = [("webgpu", ["webgpu"], ["webgpu-render", "webgpu-compute"])]
@@ -845,6 +950,7 @@ def main(argv: list[str] | None = None) -> int:
         load_requests=args.load_requests,
         quick_max=args.quick_max,
         stress_xl=args.stress_xl,
+        matrix_concurrency_max=args.matrix_concurrency_max,
     )
 
     client = SyncApiClient(config.server_url)

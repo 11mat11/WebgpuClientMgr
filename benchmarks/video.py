@@ -81,7 +81,9 @@ def run_video_histogram_benchmarks(
             data = response.json if isinstance(response.json, dict) else {}
             mem_gpu, mem_host, mem_rss = _extract_memory(data)
             if response.status != 200:
-                print(f"[video-hist] status={response.status} frame={frame} backend={backend}")
+                error_msg = data.get('message', data.get('error', 'Brak szczegółów'))
+                print(
+                    f"\033[91m[video_hist] Błąd: {response.status} - {error_msg} (file={file_name} frame={frame} backend={backend})\033[0m")
                 continue
             if warmup and iteration == 0:
                 continue
@@ -109,104 +111,120 @@ def run_video_histogram_benchmarks(
 
 
 async def _run_stream_for_quality(
-    ws_url: str,
-    file_name: str,
-    backend: str,
-    quality: str,
-    frame_count: int,
-    ssl_context: ssl.SSLContext | None,
+        ws_url: str,
+        file_name: str,
+        backend: str,
+        quality: str,
+        frame_count: int,
+        ssl_context: ssl.SSLContext | None,
 ) -> list[BenchResult]:
     results: list[BenchResult] = []
     last_frame_time: float | None = None
 
-    async with websockets.connect(ws_url, max_size=None, ssl=ssl_context) as websocket:
-        print(
-            f"[video-stream] backend={backend} quality={quality} frames={frame_count}"
-        )
-        select_payload = {
-            "action": "select",
-            "fileName": file_name,
-            "backend": backend,
-            "quality": quality,
-            "compress": False,
-        }
-        await websocket.send(json.dumps(select_payload))
-        try:
-            while True:
-                message = await websocket.recv()
-                payload = json.loads(message)
-                if isinstance(payload, dict) and payload.get("type") == "selected":
+    try:
+        async with websockets.connect(ws_url, max_size=None, ssl=ssl_context) as websocket:
+            print(
+                f"[video-stream] backend={backend} quality={quality} frames={frame_count}"
+            )
+            select_payload = {
+                "action": "select",
+                "fileName": file_name,
+                "backend": backend,
+                "quality": quality,
+                "compress": False,
+            }
+            await websocket.send(json.dumps(select_payload))
+            try:
+                while True:
+                    message = await websocket.recv()
+                    payload = json.loads(message)
+
+                    if isinstance(payload, dict) and payload.get("error"):
+                        print(
+                            f"\033[91m[video_stream] Błąd z serwera: {payload.get('error')} (quality={quality})\033[0m")
+                        return results
+
+                    if isinstance(payload, dict) and payload.get("type") == "selected":
+                        mem_gpu, mem_host, mem_rss = _extract_memory(payload)
+                        results.append(
+                            BenchResult(
+                                timestamp_utc=utc_now_iso(),
+                                endpoint="/video/stream",
+                                pipeline="video_stream_init",
+                                backend=backend,
+                                optimized=None,
+                                size_label=quality,
+                                params={"fileName": file_name, "quality": quality},
+                                run_mode="stream",
+                                status=200,
+                                gpu_duration_ms=None,
+                                backend_duration_ms=None,
+                                server_duration_ms=None,
+                                client_rtt_ms=0.0,
+                                memory_gpu_bytes=mem_gpu,
+                                memory_host_bytes=mem_host,
+                                memory_server_rss_bytes=mem_rss,
+                                gpu_init_ms=_extract_float(payload, "gpuInitTimeMs"),
+                            )
+                        )
+                        break
+
+                frames_collected = 0
+                while frames_collected < frame_count:
+                    message = await websocket.recv()
+                    payload = json.loads(message)
+
+                    if isinstance(payload, dict) and payload.get("error"):
+                        print(f"\033[91m[video_stream] Błąd w trakcie streamu: {payload.get('error')}\033[0m")
+                        break
+
+                    if not isinstance(payload, dict) or payload.get("type") != "frame":
+                        continue
+                    payload.pop("frameDataBase64", None)
+                    now = time.perf_counter()
+                    if last_frame_time is None:
+                        frame_rtt_ms = 0.0
+                    else:
+                        frame_rtt_ms = (now - last_frame_time) * 1000.0
+                    last_frame_time = now
                     mem_gpu, mem_host, mem_rss = _extract_memory(payload)
                     results.append(
                         BenchResult(
                             timestamp_utc=utc_now_iso(),
                             endpoint="/video/stream",
-                            pipeline="video_stream_init",
+                            pipeline="video_stream",
                             backend=backend,
                             optimized=None,
                             size_label=quality,
                             params={"fileName": file_name, "quality": quality},
                             run_mode="stream",
                             status=200,
-                            gpu_duration_ms=None,
-                            backend_duration_ms=None,
-                            server_duration_ms=None,
-                            client_rtt_ms=0.0,
+                            gpu_duration_ms=_extract_float(payload, "gpuDurationMs"),
+                            backend_duration_ms=_extract_float(payload, "backendDurationMs"),
+                            server_duration_ms=_extract_float(payload, "serverDurationMs"),
+                            client_rtt_ms=frame_rtt_ms,
+                            time_between_frames_ms=frame_rtt_ms,
                             memory_gpu_bytes=mem_gpu,
                             memory_host_bytes=mem_host,
                             memory_server_rss_bytes=mem_rss,
-                            gpu_init_ms=_extract_float(payload, "gpuInitTimeMs"),
                         )
                     )
-                    break
+                    frames_collected += 1
+            finally:
+                try:
+                    await websocket.send(json.dumps({"action": "stop"}))
+                    while True:
+                        message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                        payload = json.loads(message)
+                        if isinstance(payload, dict) and payload.get("type") == "stopped":
+                            break
+                except Exception:
+                    pass
+                await websocket.close()
 
-            frames_collected = 0
-            while frames_collected < frame_count:
-                message = await websocket.recv()
-                payload = json.loads(message)
-                if not isinstance(payload, dict) or payload.get("type") != "frame":
-                    continue
-                payload.pop("frameDataBase64", None)
-                now = time.perf_counter()
-                if last_frame_time is None:
-                    frame_rtt_ms = 0.0
-                else:
-                    frame_rtt_ms = (now - last_frame_time) * 1000.0
-                last_frame_time = now
-                mem_gpu, mem_host, mem_rss = _extract_memory(payload)
-                results.append(
-                    BenchResult(
-                        timestamp_utc=utc_now_iso(),
-                        endpoint="/video/stream",
-                        pipeline="video_stream",
-                        backend=backend,
-                        optimized=None,
-                        size_label=quality,
-                        params={"fileName": file_name, "quality": quality},
-                        run_mode="stream",
-                        status=200,
-                        gpu_duration_ms=_extract_float(payload, "gpuDurationMs"),
-                        backend_duration_ms=_extract_float(payload, "backendDurationMs"),
-                        server_duration_ms=_extract_float(payload, "serverDurationMs"),
-                        client_rtt_ms=frame_rtt_ms,
-                        time_between_frames_ms=frame_rtt_ms,
-                        memory_gpu_bytes=mem_gpu,
-                        memory_host_bytes=mem_host,
-                        memory_server_rss_bytes=mem_rss,
-                    )
-                )
-                frames_collected += 1
-        finally:
-            try:
-                await websocket.send(json.dumps({"action": "stop"}))
-                while True:
-                    message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                    payload = json.loads(message)
-                    if isinstance(payload, dict) and payload.get("type") == "stopped":
-                        break
-            except Exception:
-                pass
-            await websocket.close()
+    except Exception as e:
+        print(f"\033[91m[video_stream] Błąd zerwania połączenia WebSocket: {e} (quality={quality})\033[0m")
+
     return results
 
 

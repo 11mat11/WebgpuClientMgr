@@ -41,6 +41,12 @@ Tryb szybki z maksymalnymi rozmiarami:
 python main.py --mode quick --quick-max
 ```
 
+Test wspolbiezny dla najwiekszej macierzy (1..N rownolegle):
+
+```powershell
+python main.py --mode full --matrix-concurrency-max 12
+```
+
 Pojedynczy pipeline:
 
 ```powershell
@@ -71,5 +77,6 @@ Wyniki zapisuja sie do `results/<nazwa>/` (nazwa z `/gpu/info` + data). Dla kazd
 
 - `tabelki*.csv` (osobno per endpoint/optimized/run_mode)
 - wykresami `backend_duration_ms*.png`, `gpu_duration_ms*.png`, `client_rtt_ms*.png`
+- dla testu wspolbieznych macierzy: `backend_duration_ms_bar*concurrency*.png` z +/-
 
 Gdy `USE_CUDA=1`, testy uruchamiaja sie zarowno dla WebGPU, jak i CUDA, osobno dla kazdego wariantu `optimized`.

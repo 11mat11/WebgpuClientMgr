@@ -7,6 +7,7 @@ from typing import Iterable
 import pandas as pd
 import seaborn as sns
 import json
+import matplotlib.pyplot as plt
 
 from benchmarks.common import BenchResult
 
@@ -169,6 +170,51 @@ def _aggregate_metrics(df: pd.DataFrame) -> pd.DataFrame:
     return aggregated
 
 
+def _plot_metric_bar(aggregated: pd.DataFrame, metric: str, output_path: Path) -> None:
+    if metric not in aggregated.columns or aggregated.empty:
+        return
+    plot_df = aggregated.copy()
+    if "size_label" in plot_df.columns:
+        plot_df = plot_df.sort_values(
+            by="size_label",
+            key=lambda series: series.map(_size_label_key),
+        )
+    x_labels = plot_df["size_label"].dropna().unique().tolist() if "size_label" in plot_df.columns else []
+    if not x_labels:
+        return
+    backends = plot_df["backend"].dropna().unique().tolist() if "backend" in plot_df.columns else []
+    if not backends:
+        backends = [None]
+
+    x_positions = list(range(len(x_labels)))
+    width = 0.8 / max(1, len(backends))
+    offset = (len(backends) - 1) * width / 2.0
+
+    plt.figure()
+    for idx, backend in enumerate(backends):
+        if backend is None:
+            subset = plot_df
+        else:
+            subset = plot_df[plot_df["backend"] == backend]
+        value_map = {str(row["size_label"]): row.get(metric) for _, row in subset.iterrows()}
+        err_col = f"{metric}_plus_minus"
+        error_map = {str(row["size_label"]): row.get(err_col) for _, row in subset.iterrows()} if err_col in subset.columns else {}
+        y_values = [value_map.get(str(label), float("nan")) for label in x_labels]
+        y_errors = [error_map.get(str(label), 0.0) for label in x_labels] if error_map else None
+        bar_positions = [pos - offset + idx * width for pos in x_positions]
+        label = str(backend) if backend is not None else None
+        plt.bar(bar_positions, y_values, width=width, label=label, yerr=y_errors, capsize=4)
+
+    plt.xticks(x_positions, [str(label) for label in x_labels])
+    plt.xlabel("concurrency")
+    plt.ylabel(metric)
+    if any(backend is not None for backend in backends):
+        plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.clf()
+
+
 def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_total: int | None = None) -> None:
     df = _ordered_df(results)
     if df.empty:
@@ -179,14 +225,22 @@ def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_tota
     grouped = df.groupby("endpoint", dropna=False)
     for endpoint, endpoint_df in grouped:
         endpoint_label = _slugify(str(endpoint))
-        endpoint_dir = output_dir / endpoint_label
-        endpoint_dir.mkdir(parents=True, exist_ok=True)
 
         run_modes = endpoint_df["run_mode"].dropna().unique().tolist() if "run_mode" in endpoint_df.columns else []
         include_run_mode = len(run_modes) > 1
-        run_mode_groups = endpoint_df.groupby("run_mode", dropna=False) if include_run_mode else [(None, endpoint_df)]
+
+        if run_modes:
+            run_mode_groups = endpoint_df.groupby("run_mode", dropna=False)
+        else:
+            run_mode_groups = [(None, endpoint_df)]
 
         for run_mode, run_df in run_mode_groups:
+            if run_mode == "concurrency":
+                endpoint_dir = output_dir
+            else:
+                endpoint_dir = output_dir / endpoint_label
+                endpoint_dir.mkdir(parents=True, exist_ok=True)
+
             run_suffix = f"_{run_mode}" if include_run_mode and run_mode is not None else ""
             if "optimized" in run_df.columns:
                 opt_values = run_df["optimized"].dropna().unique().tolist()
@@ -214,9 +268,18 @@ def write_reports(results: Iterable[BenchResult], output_dir: Path, planned_tota
                 export_df = export_df.dropna(axis=1, how="all")
                 export_df.to_csv(csv_path, index=False)
 
-                _plot_metric(opt_df, "backend_duration_ms", endpoint_dir / f"backend_duration_ms{run_suffix}{opt_suffix}.png")
-                _plot_metric(opt_df, "gpu_duration_ms", endpoint_dir / f"gpu_duration_ms{run_suffix}{opt_suffix}.png")
-                _plot_metric(opt_df, "client_rtt_ms", endpoint_dir / f"client_rtt_ms{run_suffix}{opt_suffix}.png")
-                _plot_metric(opt_df, "memory_gpu_bytes", endpoint_dir / f"memory_gpu_bytes{run_suffix}{opt_suffix}.png")
-                _plot_metric(opt_df, "memory_host_bytes", endpoint_dir / f"memory_host_bytes{run_suffix}{opt_suffix}.png")
-                _plot_metric(opt_df, "memory_server_rss_bytes", endpoint_dir / f"memory_server_rss_bytes{run_suffix}{opt_suffix}.png")
+                if run_mode == "concurrency":
+                    for metric in ["backend_duration_ms", "gpu_duration_ms", "client_rtt_ms"]:
+                        if metric in export_df.columns:
+                            _plot_metric_bar(
+                                export_df,
+                                metric,
+                                endpoint_dir / f"{metric}_bar{run_suffix}{opt_suffix}.png",
+                            )
+                else:
+                    _plot_metric(opt_df, "backend_duration_ms", endpoint_dir / f"backend_duration_ms{run_suffix}{opt_suffix}.png")
+                    _plot_metric(opt_df, "gpu_duration_ms", endpoint_dir / f"gpu_duration_ms{run_suffix}{opt_suffix}.png")
+                    _plot_metric(opt_df, "client_rtt_ms", endpoint_dir / f"client_rtt_ms{run_suffix}{opt_suffix}.png")
+                    _plot_metric(opt_df, "memory_gpu_bytes", endpoint_dir / f"memory_gpu_bytes{run_suffix}{opt_suffix}.png")
+                    _plot_metric(opt_df, "memory_host_bytes", endpoint_dir / f"memory_host_bytes{run_suffix}{opt_suffix}.png")
+                    _plot_metric(opt_df, "memory_server_rss_bytes", endpoint_dir / f"memory_server_rss_bytes{run_suffix}{opt_suffix}.png")

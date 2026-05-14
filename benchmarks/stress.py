@@ -125,7 +125,9 @@ async def _run_one(
         response = await _hit_target(client, target)
     data = response.json if isinstance(response.json, dict) else {}
     if response.status != 200:
-        print(f"[stress] status={response.status} path={target.path} backend={target.backend}")
+        error_msg = response.json.get('message', response.json.get('error',
+                                                                   'Brak szczegółów')) if response.json else 'Brak odpowiedzi JSON'
+        print(f"\033[91m[{run_mode}] Błąd {target.path}: {response.status} - {error_msg}\033[0m")
         return
     mem_gpu, mem_host, mem_rss = _extract_memory(data)
     results.append(
