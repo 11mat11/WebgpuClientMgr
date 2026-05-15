@@ -115,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--target",
-        help="Pipeline name for --mode single (matrix/image/video/ai/render).",
+        help="Pipeline name for --mode single (matrix/image/video/ai/render/matrix-concurrency).",
     )
     parser.add_argument(
         "--no-cuda",
@@ -543,6 +543,9 @@ def _run_single(
             )
             _log_progress("matrix", len(results), planned_total)
             _write_stage(results, output_dir)
+            return []
+
+        case "matrix-concurrency":
             results = _run_matrix_concurrency_pipeline(
                 config,
                 iterations=config.iterations,
