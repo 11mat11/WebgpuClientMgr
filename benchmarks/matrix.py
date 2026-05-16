@@ -118,7 +118,12 @@ async def _run_matrix_concurrency_async(
                             memory_server_rss_bytes=mem_rss,
                         )
                     )
-                await asyncio.sleep(1.5)
+                try:
+                    await client.request("DELETE", "/gpu/reset")
+                    print("🧹 Zresetowano pamięć układu graficznego (CUDA/WebGPU).")
+                except Exception:
+                    pass
+                await asyncio.sleep(2.0)
     return results
 
 def _extract_message(payload: dict) -> str | None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -218,6 +219,16 @@ def _matrix_concurrency_levels(max_concurrency: int, use_max_only: bool) -> list
     return list(range(1, max_concurrency + 1))
 
 
+def _reset_gpu_if_needed(client: SyncApiClient, use_cuda: bool) -> None:
+    try:
+        client.request("DELETE", "/gpu/reset")
+        print("🧹 Zresetowano pamięć układu graficznego (CUDA/WebGPU).")
+        time.sleep(2.0)
+    except Exception:
+        print("⚠️ Ostrzeżenie: Nie udało się zresetować kontekstu GPU.")
+        pass
+
+
 def _write_stage(results: list, output_dir: Path) -> None:
     if results:
         write_reports(results, output_dir)
@@ -400,6 +411,7 @@ def _run_all(
         sizes=MATRIX_SIZES,
         use_max_only=use_max_only,
     )
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_image_pipeline(
         client,
         config,
@@ -408,6 +420,7 @@ def _run_all(
         sizes=IMAGE_SIZES,
         use_max_only=use_max_only,
     )
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_video_pipeline(
         client,
         config,
@@ -418,7 +431,9 @@ def _run_all(
         stream_frames=1000,
         use_max_only=use_max_only,
     )
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_ai_pipeline(client, config, quick_samples=False)
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_render_pipeline(
         client,
         config,
@@ -471,6 +486,7 @@ def _run_quick(
     _log_progress("matrix", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_image_pipeline(
         client,
         config,
@@ -483,6 +499,7 @@ def _run_quick(
     _log_progress("image", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_video_pipeline(
         client,
         config,
@@ -497,11 +514,13 @@ def _run_quick(
     _log_progress("video", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_ai_pipeline(client, config, quick_samples=True)
     completed_total += len(results)
     _log_progress("ai", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_render_pipeline(
         client,
         config,
@@ -514,6 +533,7 @@ def _run_quick(
     _log_progress("render", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_matrix_concurrency_pipeline(
         config,
         iterations=1,
@@ -543,6 +563,7 @@ def _run_single(
             )
             _log_progress("matrix", len(results), planned_total)
             _write_stage(results, output_dir)
+            _reset_gpu_if_needed(client, config.use_cuda)
             return []
 
         case "matrix-concurrency":
@@ -555,6 +576,7 @@ def _run_single(
             )
             _log_progress("matrix-concurrency", len(results), planned_total)
             _write_stage(results, output_dir / "concurrency")
+            _reset_gpu_if_needed(client, config.use_cuda)
             return []
         case "image":
             results = _run_image_pipeline(
@@ -567,6 +589,7 @@ def _run_single(
             )
             _log_progress("image", len(results), planned_total)
             _write_stage(results, output_dir)
+            _reset_gpu_if_needed(client, config.use_cuda)
             return []
         case "video":
             results = _run_video_pipeline(
@@ -581,11 +604,13 @@ def _run_single(
             )
             _log_progress("video", len(results), planned_total)
             _write_stage(results, output_dir)
+            _reset_gpu_if_needed(client, config.use_cuda)
             return []
         case "ai":
             results = _run_ai_pipeline(client, config, quick_samples=False)
             _log_progress("ai", len(results), planned_total)
             _write_stage(results, output_dir)
+            _reset_gpu_if_needed(client, config.use_cuda)
             return []
         case "render":
             results = _run_render_pipeline(
@@ -598,6 +623,7 @@ def _run_single(
             )
             _log_progress("render", len(results), planned_total)
             _write_stage(results, output_dir)
+            _reset_gpu_if_needed(client, config.use_cuda)
             return []
         case _:
             raise ValueError(f"Unknown target: {config.target}")
@@ -623,6 +649,7 @@ def _run_full(
     _log_progress("matrix", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_image_pipeline(
         client,
         config,
@@ -635,6 +662,7 @@ def _run_full(
     _log_progress("image", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_video_pipeline(
         client,
         config,
@@ -649,11 +677,13 @@ def _run_full(
     _log_progress("video", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_ai_pipeline(client, config, quick_samples=False)
     completed_total += len(results)
     _log_progress("ai", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_render_pipeline(
         client,
         config,
@@ -666,6 +696,7 @@ def _run_full(
     _log_progress("render", completed_total, planned_total)
     _write_stage(results, output_dir)
     results = []
+    _reset_gpu_if_needed(client, config.use_cuda)
     results += _run_matrix_concurrency_pipeline(
         config,
         iterations=config.iterations,
@@ -1068,6 +1099,7 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"Saved results to {output_dir}")
     finally:
+        _reset_gpu_if_needed(client, config.use_cuda)
         client.close()
     return 0
 
