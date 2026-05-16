@@ -118,8 +118,8 @@ async def _run_matrix_concurrency_async(
                             memory_server_rss_bytes=mem_rss,
                         )
                     )
+                await asyncio.sleep(1.5)
     return results
-
 
 def _extract_message(payload: dict) -> str | None:
     message = payload.get("message") if isinstance(payload, dict) else None
