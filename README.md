@@ -45,7 +45,7 @@ Procedura badawcza zakłada testowanie sprzętu na granicach jego możliwości o
 ### Scenariusz A: Błąd w teście współbieżności (na samym końcu)
 Jeśli wszystkie testy sekwencyjne przechodzą pomyślnie, ale serwer ulega awarii pod koniec działania (podczas równoległego wysyłania największych macierzy), oznacza to, że zsumowana wielkość alokacji dla wielu zadań przekracza fizyczny limit VRAM.
 
-**Rozwiązanie:** Kod główny pozostaje bez zmian. Należy uruchomić pełny test, nadpisując domyślny limit współbieżności (5) za pomocą flagi `--matrix-concurrency-max` na wartość gwarantującą stabilność (np. 4):
+**Rozwiązanie:** Kod główny pozostaje bez zmian. Należy uruchomić pełny test, nadpisując domyślny limit współbieżności (6) za pomocą flagi `--matrix-concurrency-max` na wartość gwarantującą stabilność (np. 4):
 `python main.py --mode full --matrix-concurrency-max 4`
 
 ### Scenariusz B: Błąd podczas testów sekwencyjnych
@@ -60,7 +60,7 @@ DEFAULT_STRESS_REQUESTS: Final[int] = 1000
 DEFAULT_STRESS_XL_REQUESTS: Final[int] = 200
 DEFAULT_LOAD_CONCURRENCY: Final[int] = 16
 DEFAULT_LOAD_REQUESTS: Final[int] = 100
-DEFAULT_MATRIX_CONCURRENCY_MAX: Final[int] = 5
+DEFAULT_MATRIX_CONCURRENCY_MAX: Final[int] = 6
 MATRIX_SIZES: Final[list[int]] = [256, 500, 512, 1000, 1024, 2048, 3000, 4096, 5000, 8192, 10000]
 MATRIX_SIZES_QUICK: Final[list[int]] = [256, 512]
 IMAGE_SIZES: Final[list[tuple[int, int]]] = [
