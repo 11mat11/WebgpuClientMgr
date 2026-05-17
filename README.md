@@ -56,7 +56,7 @@ Jeśli awaria następuje już w trakcie testowania pojedynczych, największych e
 ```python
 DEFAULT_ITERATIONS: Final[int] = 30
 DEFAULT_STRESS_CONCURRENCY: Final[int] = 64
-DEFAULT_STRESS_REQUESTS: Final[int] = 1000
+DEFAULT_STRESS_REQUESTS: Final[int] = 512
 DEFAULT_STRESS_XL_REQUESTS: Final[int] = 200
 DEFAULT_LOAD_CONCURRENCY: Final[int] = 16
 DEFAULT_LOAD_REQUESTS: Final[int] = 100
