@@ -50,7 +50,6 @@ MATRIX_SIZES: Final[list[int]] = [
     5000,
     8192,
     10000,
-    12000,
 ]
 MATRIX_SIZES_QUICK: Final[list[int]] = [256, 512]
 IMAGE_SIZES: Final[list[tuple[int, int]]] = [

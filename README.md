@@ -49,7 +49,7 @@ Jeśli wszystkie testy sekwencyjne przechodzą pomyślnie, ale serwer ulega awar
 `python main.py --mode full --matrix-concurrency-max 4`
 
 ### Scenariusz B: Błąd podczas testów sekwencyjnych
-Jeśli awaria następuje już w trakcie testowania pojedynczych, największych elementów (np. macierzy 12000x12000 lub obrazów 8K), konieczna jest manualna redukcja maksymalnych rozmiarów danych w konfiguracji skryptu klienckiego.
+Jeśli awaria następuje już w trakcie testowania pojedynczych, największych elementów (np. macierzy 10000x10000 lub obrazów 8K), konieczna jest manualna redukcja maksymalnych rozmiarów danych w konfiguracji skryptu klienckiego.
 
 **Rozwiązanie:** Należy wyedytować plik `main.py` (linie od 33 do 61) i zredukować lub usunąć największe wartości w głównych listach konfiguracyjnych:
 
@@ -60,8 +60,8 @@ DEFAULT_STRESS_REQUESTS: Final[int] = 1000
 DEFAULT_STRESS_XL_REQUESTS: Final[int] = 200
 DEFAULT_LOAD_CONCURRENCY: Final[int] = 16
 DEFAULT_LOAD_REQUESTS: Final[int] = 100
-DEFAULT_MATRIX_CONCURRENCY_MAX: Final[int] = 8
-MATRIX_SIZES: Final[list[int]] = [256, 500, 512, 1000, 1024, 2048, 3000, 4096, 5000, 8192, 10000, 12000]
+DEFAULT_MATRIX_CONCURRENCY_MAX: Final[int] = 5
+MATRIX_SIZES: Final[list[int]] = [256, 500, 512, 1000, 1024, 2048, 3000, 4096, 5000, 8192, 10000]
 MATRIX_SIZES_QUICK: Final[list[int]] = [256, 512]
 IMAGE_SIZES: Final[list[tuple[int, int]]] = [
     (320, 180),    # 180p
