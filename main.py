@@ -260,6 +260,7 @@ def _run_matrix_pipeline(
             iterations=iterations,
             warmup=warmup,
         )
+        _reset_gpu_if_needed(client, config.use_cuda)
     return results
 
 

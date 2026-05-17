@@ -126,6 +126,7 @@ async def _run_matrix_concurrency_async(
                 await asyncio.sleep(3.0)
     return results
 
+
 def _extract_message(payload: dict) -> str | None:
     message = payload.get("message") if isinstance(payload, dict) else None
     if message is None:
@@ -172,6 +173,12 @@ def run_matrix_benchmarks(
     results: list[BenchResult] = []
     for size in sizes:
         for optimized in optimized_variants:
+            if size >= 8192 and not optimized:
+                print(
+                    f"⚠️ Pomijanie rozmiaru {size} dla nieoptymalizowanego algorytmu "
+                    "(ochrona przed limitem TDR systemu Windows)."
+                )
+                continue
             for iteration in range(iterations):
                 print(
                     f"[matrix] size={size} backend={backend} optimized={optimized} iter={iteration + 1}/{iterations}"
@@ -221,4 +228,11 @@ def run_matrix_benchmarks(
                         memory_server_rss_bytes=mem_rss,
                     )
                 )
+        try:
+            client.request("DELETE", "/gpu/reset")
+            print(f"🧹 Zresetowano pamięć po testach rozmiaru {size}.")
+            import time
+            time.sleep(1.5)
+        except Exception:
+            pass
     return results
