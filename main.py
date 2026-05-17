@@ -223,7 +223,7 @@ def _reset_gpu_if_needed(client: SyncApiClient, use_cuda: bool) -> None:
     try:
         client.request("DELETE", "/gpu/reset")
         print("🧹 Zresetowano pamięć układu graficznego (CUDA/WebGPU).")
-        time.sleep(2.0)
+        time.sleep(3.0)
     except Exception:
         print("⚠️ Ostrzeżenie: Nie udało się zresetować kontekstu GPU.")
         pass

@@ -123,7 +123,7 @@ async def _run_matrix_concurrency_async(
                     print("🧹 Zresetowano pamięć układu graficznego (CUDA/WebGPU).")
                 except Exception:
                     pass
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(3.0)
     return results
 
 def _extract_message(payload: dict) -> str | None:
